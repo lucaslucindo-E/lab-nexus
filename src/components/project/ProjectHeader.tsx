@@ -22,12 +22,13 @@ export function ProjectHeader({ project }: Props) {
     { label: 'Resp. FMT', value: project.responsavelFMT },
     { label: 'Resp. D.A', value: project.responsavelDA },
     { label: 'Autor(es)', value: project.autores.join(', ') },
+    { label: 'Início', value: project.dataInicio ? new Date(project.dataInicio).toLocaleDateString('pt-BR') : '' },
+    { label: 'Finalização', value: project.dataFinalizacao ? new Date(project.dataFinalizacao).toLocaleDateString('pt-BR') : '' },
   ];
 
   return (
     <div className="sticky top-0 z-30 bg-card border-b shadow-sm">
       <div className="container max-w-6xl mx-auto px-6">
-        {/* Top row */}
         <div className="flex items-center justify-between py-3 border-b">
           <div className="flex items-center gap-3">
             <Button variant="ghost" size="icon" onClick={() => navigate('/')}>
@@ -47,8 +48,7 @@ export function ProjectHeader({ project }: Props) {
           </div>
         </div>
 
-        {/* Info grid */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-x-6 gap-y-2 py-3 text-sm">
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-x-6 gap-y-2 py-3 text-sm">
           {fields.map(f => (
             <div key={f.label}>
               <span className="text-muted-foreground text-xs">{f.label}</span>

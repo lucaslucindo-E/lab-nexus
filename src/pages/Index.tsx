@@ -8,7 +8,9 @@ import { Search, FlaskConical } from 'lucide-react';
 
 const statusFilters: { value: ProjectStatus | 'all'; label: string }[] = [
   { value: 'all', label: 'Todos' },
+  { value: 'not_started', label: 'Não iniciado' },
   { value: 'active', label: 'Em andamento' },
+  { value: 'correction', label: 'Em correção' },
   { value: 'review', label: 'Em revisão' },
   { value: 'done', label: 'Finalizado' },
 ];
@@ -29,7 +31,6 @@ export default function Dashboard() {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
       <header className="border-b bg-card">
         <div className="container max-w-6xl mx-auto px-6 py-5 flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -37,7 +38,7 @@ export default function Dashboard() {
               <FlaskConical className="w-5 h-5 text-primary-foreground" />
             </div>
             <div>
-              <h1 className="text-xl font-bold text-foreground tracking-tight">ValAnalítica</h1>
+              <h1 className="text-xl font-bold text-foreground tracking-tight">AppVal</h1>
               <p className="text-xs text-muted-foreground">Sistema de Validação Analítica</p>
             </div>
           </div>
@@ -45,9 +46,7 @@ export default function Dashboard() {
         </div>
       </header>
 
-      {/* Content */}
       <main className="container max-w-6xl mx-auto px-6 py-8">
-        {/* Search & Filters */}
         <div className="flex flex-col sm:flex-row gap-4 mb-8">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
@@ -58,7 +57,7 @@ export default function Dashboard() {
               className="pl-10"
             />
           </div>
-          <div className="flex gap-1.5">
+          <div className="flex gap-1.5 flex-wrap">
             {statusFilters.map(f => (
               <button
                 key={f.value}
@@ -75,7 +74,6 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* Projects Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {filtered.map(project => (
             <ProjectCard key={project.id} project={project} />

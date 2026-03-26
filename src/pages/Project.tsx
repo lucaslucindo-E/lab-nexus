@@ -6,13 +6,13 @@ import { mockProjects } from '@/lib/mock-data';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 const tabs = [
-  { value: 'linearidade', label: 'Linearidade' },
-  { value: 'robustez', label: 'Robustez' },
+  { value: 'avaliacao-filtro', label: 'Avaliação de Filtro' },
+  { value: 'estabilidade', label: 'Estabilidade' },
   { value: 'exatidao-estoque', label: 'Exatidão - Estoque' },
   { value: 'exatidao-pesada', label: 'Exatidão - Pesada' },
+  { value: 'linearidade', label: 'Linearidade' },
   { value: 'precisao', label: 'Precisão' },
-  { value: 'filtro', label: 'Avaliação de Filtro' },
-  { value: 'estabilidade', label: 'Estabilidade' },
+  { value: 'robustez', label: 'Robustez' },
 ];
 
 export default function ProjectPage() {
@@ -28,7 +28,9 @@ export default function ProjectPage() {
     responsavelFMT: '',
     responsavelDA: '',
     autores: [],
-    status: 'active' as const,
+    status: 'not_started' as const,
+    dataInicio: '',
+    dataFinalizacao: '',
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
   };
@@ -55,7 +57,7 @@ export default function ProjectPage() {
             <LinearidadeTab />
           </TabsContent>
 
-          {tabs.slice(1).map(tab => (
+          {tabs.filter(t => t.value !== 'linearidade').map(tab => (
             <TabsContent key={tab.value} value={tab.value}>
               <PlaceholderTab name={tab.label} />
             </TabsContent>

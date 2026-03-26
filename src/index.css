@@ -43,7 +43,9 @@
     --info-foreground: 0 0% 100%;
 
     /* Status colors */
+    --status-not-started: 215 12% 55%;
     --status-active: 215 60% 42%;
+    --status-correction: 15 80% 50%;
     --status-review: 38 92% 50%;
     --status-done: 152 60% 40%;
 
@@ -118,9 +120,17 @@
   .status-badge {
     @apply inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium;
   }
+  .status-not-started {
+    background: hsl(var(--status-not-started) / 0.1);
+    color: hsl(var(--status-not-started));
+  }
   .status-active {
     background: hsl(var(--status-active) / 0.1);
     color: hsl(var(--status-active));
+  }
+  .status-correction {
+    background: hsl(var(--status-correction) / 0.1);
+    color: hsl(var(--status-correction));
   }
   .status-review {
     background: hsl(var(--status-review) / 0.1);
