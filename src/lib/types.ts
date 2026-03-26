@@ -1,4 +1,4 @@
-export type ProjectStatus = 'active' | 'review' | 'done';
+export type ProjectStatus = 'not_started' | 'active' | 'correction' | 'review' | 'done';
 
 export interface Project {
   id: string;
@@ -12,6 +12,8 @@ export interface Project {
   responsavelDA: string;
   autores: string[];
   status: ProjectStatus;
+  dataInicio: string;
+  dataFinalizacao: string;
   createdAt: string;
   updatedAt: string;
 }
