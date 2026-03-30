@@ -44,7 +44,7 @@ export function executeFormula(
   // Sort keys by length desc to avoid partial replacements
   const sorted = Object.entries(variables).sort((a, b) => b[0].length - a[0].length);
   for (const [k, v] of sorted) {
-    sub = sub.replaceAll(k, fmtNum(v));
+    sub = sub.split(k).join(fmtNum(v));
   }
   return { value: safeEval(sub), substitution: sub };
 }
