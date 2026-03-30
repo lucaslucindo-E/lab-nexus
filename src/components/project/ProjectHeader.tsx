@@ -1,14 +1,16 @@
 import { Project } from '@/lib/types';
 import { StatusBadge } from '@/components/dashboard/StatusBadge';
+import { EditProjectDialog } from '@/components/dashboard/EditProjectDialog';
 import { ArrowLeft, Paperclip } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 
 interface Props {
   project: Project;
+  onEdit?: (updated: Project) => void;
 }
 
-export function ProjectHeader({ project }: Props) {
+export function ProjectHeader({ project, onEdit }: Props) {
   const navigate = useNavigate();
 
   const fields = [
@@ -41,6 +43,7 @@ export function ProjectHeader({ project }: Props) {
           </div>
           <div className="flex items-center gap-3">
             <StatusBadge status={project.status} />
+            {onEdit && <EditProjectDialog project={project} onSave={onEdit} />}
             <Button variant="outline" size="sm" className="gap-1.5">
               <Paperclip className="w-3.5 h-3.5" />
               Anexos
