@@ -8,7 +8,7 @@ import { ExatidaoPesadaTab } from '@/components/project/tabs/ExatidaoPesadaTab';
 import { EstabilidadeTab } from '@/components/project/tabs/EstabilidadeTab';
 import { AvaliacaoFiltroTab } from '@/components/project/tabs/AvaliacaoFiltroTab';
 import { RobustezTab } from '@/components/project/tabs/RobustezTab';
-import { EditProjectDialog } from '@/components/dashboard/EditProjectDialog';
+
 import { mockProjects } from '@/lib/mock-data';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import type { Project } from '@/lib/types';
