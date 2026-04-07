@@ -1,131 +1,166 @@
 import { useState, useMemo } from 'react';
 import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { ResultIndicator } from '@/components/project/ResultIndicator';
 import { CalculationRationale } from '@/components/project/CalculationRationale';
 import { fmtNum, executeFormula, type FormulaDefinition } from '@/lib/calc-engine';
 import { Calculator, RotateCcw, Plus, Trash2, FileDown } from 'lucide-react';
 
-const formulaVariacao: FormulaDefinition = {
-  id: 'variacao',
-  nome: 'Variação (%)',
-  formula: '((resultado_teste - controle) / controle) * 100',
-  variaveis: { resultado_teste: 'Resultado Teste', controle: 'Controle' },
+const formulaRecuperacao: FormulaDefinition = {
+  id: 'recuperacao_robustez',
+  nome: 'Recuperação Robustez (%)',
+  formula: '(areaAmostra / areaPadrao) * 100',
+  variaveis: { areaAmostra: 'Área Amostra', areaPadrao: 'Área Padrão' },
   unidade: '%',
 };
 
-const defaultRows = [
-  { condicao: 'Fluxo +10%', controle: '100.0', resultado_teste: '99.5' },
-  { condicao: 'Fluxo -10%', controle: '100.0', resultado_teste: '100.8' },
-  { condicao: 'Temp. +5°C', controle: '100.0', resultado_teste: '99.2' },
-  { condicao: 'Temp. -5°C', controle: '100.0', resultado_teste: '100.3' },
+interface SSTRow {
+  parametro: string;
+  tRetencao: string;
+  dpr: string;
+  fatorCauda: string;
+  pratosT: string;
+}
+
+interface ResultRow {
+  parametro: string;
+  areaPadrao: string;
+  areaAmostra: string;
+}
+
+const defaultSST: SSTRow[] = [
+  { parametro: 'Controle (n=5)', tRetencao: '', dpr: '', fatorCauda: '1', pratosT: '' },
+  { parametro: 'Temperatura 36 °C', tRetencao: '', dpr: '', fatorCauda: '1', pratosT: '' },
+  { parametro: 'Temperatura 44 °C', tRetencao: '', dpr: '', fatorCauda: '1', pratosT: '' },
+  { parametro: 'Fluxo 1,2 mL/min', tRetencao: '', dpr: '', fatorCauda: '1', pratosT: '' },
+  { parametro: 'Fluxo 0,9 mL/min', tRetencao: '', dpr: '', fatorCauda: '1', pratosT: '' },
+];
+
+const defaultResults: ResultRow[] = [
+  { parametro: 'Controle (n=5)', areaPadrao: '', areaAmostra: '' },
+  { parametro: 'Temperatura 36 °C', areaPadrao: '', areaAmostra: '' },
+  { parametro: 'Temperatura 44 °C', areaPadrao: '', areaAmostra: '' },
+  { parametro: 'Fluxo 1,2 mL/min', areaPadrao: '', areaAmostra: '' },
+  { parametro: 'Fluxo 0,9 mL/min', areaPadrao: '', areaAmostra: '' },
 ];
 
 export function RobustezTab() {
-  const [rows, setRows] = useState(defaultRows.map(r => ({ ...r })));
-  const [observacoes, setObservacoes] = useState('');
+  const [sstRows, setSstRows] = useState<SSTRow[]>(defaultSST.map(r => ({ ...r })));
+  const [resultRows, setResultRows] = useState<ResultRow[]>(defaultResults.map(r => ({ ...r })));
   const [calculated, setCalculated] = useState(false);
 
-  const addRow = () => { setRows(prev => [...prev, { condicao: '', controle: '', resultado_teste: '' }]); setCalculated(false); };
-  const removeRow = (i: number) => { if (rows.length <= 1) return; setRows(prev => prev.filter((_, idx) => idx !== i)); setCalculated(false); };
-  const updateRow = (i: number, field: string, val: string) => { setRows(prev => prev.map((r, idx) => (idx === i ? { ...r, [field]: val } : r))); setCalculated(false); };
+  const addSST = () => { setSstRows(p => [...p, { parametro: '', tRetencao: '', dpr: '', fatorCauda: '1', pratosT: '' }]); setCalculated(false); };
+  const addResult = () => { setResultRows(p => [...p, { parametro: '', areaPadrao: '', areaAmostra: '' }]); setCalculated(false); };
 
-  const result = useMemo(() => {
+  const recResults = useMemo(() => {
     if (!calculated) return null;
-    const calcs: { condicao: string; value: number; substitution: string }[] = [];
-    for (const row of rows) {
-      const rt = Number(row.resultado_teste), c = Number(row.controle);
-      if (isNaN(rt) || isNaN(c) || c === 0) return null;
-      const r = executeFormula(formulaVariacao.formula, { resultado_teste: rt, controle: c });
-      calcs.push({ condicao: row.condicao, ...r });
-    }
-    return calcs;
-  }, [calculated, rows]);
+    return resultRows.map(r => {
+      const ap = Number(r.areaPadrao), aa = Number(r.areaAmostra);
+      if (!ap || !aa || isNaN(ap) || isNaN(aa)) return { parametro: r.parametro, value: null, substitution: '' };
+      const res = executeFormula(formulaRecuperacao.formula, { areaAmostra: aa, areaPadrao: ap });
+      return { parametro: r.parametro, value: res.value, substitution: res.substitution };
+    });
+  }, [calculated, resultRows]);
 
   const rationaleSteps = useMemo(() => {
-    if (!result) return [];
-    return result.map(c => ({
-      label: `Variação — ${c.condicao}`,
-      formula: formulaVariacao.formula,
-      substitution: c.substitution,
-      result: `${fmtNum(c.value)} %`,
+    if (!recResults) return [];
+    return recResults.filter(r => r.value != null).map(r => ({
+      label: `Recuperação — ${r.parametro}`,
+      formula: formulaRecuperacao.formula,
+      substitution: r.substitution,
+      result: `${fmtNum(r.value!, 2)} %`,
     }));
-  }, [result]);
-
-  const reset = () => { setRows(defaultRows.map(r => ({ ...r }))); setCalculated(false); setObservacoes(''); };
+  }, [recResults]);
 
   return (
-    <div className="space-y-8">
-      <section>
-        <h2 className="text-base font-semibold text-foreground mb-4 flex items-center gap-2">
-          <span className="w-6 h-6 rounded bg-primary text-primary-foreground flex items-center justify-center text-xs font-bold">1</span>
-          Entrada de Dados
-        </h2>
-        <div className="bg-card border rounded-lg overflow-hidden">
+    <div className="space-y-6">
+      {/* SST Table */}
+      <div className="bg-card border rounded-xl p-6">
+        <h3 className="text-sm font-semibold text-foreground mb-4 flex items-center gap-2">
+          <span>⚙️</span> Adequabilidade do Sistema
+        </h3>
+        <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="bg-muted">
-                <th className="text-left px-4 py-2 font-medium text-muted-foreground">Condição</th>
-                <th className="text-left px-4 py-2 font-medium text-muted-foreground">Controle</th>
-                <th className="text-left px-4 py-2 font-medium text-muted-foreground">Resultado Teste</th>
-                <th className="w-12"></th>
+              <tr className="border-b">
+                {['Parâmetro', 'T. Retenção (min)', 'DPR (%)', 'Fator Cauda', 'Pratos Teóricos'].map(h => (
+                  <th key={h} className="text-left py-2 px-1 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">{h}</th>
+                ))}
               </tr>
             </thead>
             <tbody>
-              {rows.map((r, i) => (
-                <tr key={i} className="border-t">
-                  <td className="px-4 py-2"><Input value={r.condicao} onChange={e => updateRow(i, 'condicao', e.target.value)} className="h-8 w-36" /></td>
-                  <td className="px-4 py-2"><Input type="number" value={r.controle} onChange={e => updateRow(i, 'controle', e.target.value)} className="h-8 w-28" /></td>
-                  <td className="px-4 py-2"><Input type="number" value={r.resultado_teste} onChange={e => updateRow(i, 'resultado_teste', e.target.value)} className="h-8 w-28" /></td>
-                  <td className="px-4 py-2">
-                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => removeRow(i)} disabled={rows.length <= 1}><Trash2 className="w-3.5 h-3.5 text-muted-foreground" /></Button>
-                  </td>
+              {sstRows.map((r, i) => (
+                <tr key={i} className="border-b border-border/50">
+                  <td className="py-1.5 px-1"><Input value={r.parametro} onChange={e => { const next = [...sstRows]; next[i] = { ...r, parametro: e.target.value }; setSstRows(next); }} className="h-8 text-xs" /></td>
+                  <td className="py-1.5 px-1"><Input type="number" value={r.tRetencao} onChange={e => { const next = [...sstRows]; next[i] = { ...r, tRetencao: e.target.value }; setSstRows(next); }} className="h-8 w-24 text-xs" /></td>
+                  <td className="py-1.5 px-1"><Input type="number" value={r.dpr} onChange={e => { const next = [...sstRows]; next[i] = { ...r, dpr: e.target.value }; setSstRows(next); }} className="h-8 w-20 text-xs" /></td>
+                  <td className="py-1.5 px-1"><Input type="number" value={r.fatorCauda} onChange={e => { const next = [...sstRows]; next[i] = { ...r, fatorCauda: e.target.value }; setSstRows(next); }} className="h-8 w-20 text-xs" /></td>
+                  <td className="py-1.5 px-1"><Input type="number" value={r.pratosT} onChange={e => { const next = [...sstRows]; next[i] = { ...r, pratosT: e.target.value }; setSstRows(next); }} className="h-8 w-24 text-xs" /></td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
-        <div className="flex gap-3 mt-4">
-          <Button onClick={() => setCalculated(true)} className="gap-2"><Calculator className="w-4 h-4" /> Calcular</Button>
-          <Button variant="outline" onClick={addRow} className="gap-2"><Plus className="w-4 h-4" /> Adicionar Condição</Button>
-          <Button variant="outline" onClick={reset} className="gap-2"><RotateCcw className="w-4 h-4" /> Resetar</Button>
-        </div>
-      </section>
+        <Button variant="ghost" size="sm" onClick={addSST} className="mt-2 gap-1.5 text-xs">
+          <Plus className="w-3.5 h-3.5" /> Adicionar Linha
+        </Button>
+      </div>
 
-      {result && (
-        <section>
-          <h2 className="text-base font-semibold text-foreground mb-4 flex items-center gap-2">
-            <span className="w-6 h-6 rounded bg-primary text-primary-foreground flex items-center justify-center text-xs font-bold">2</span>
-            Resultados
-          </h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            {result.map((c, i) => (
-              <ResultIndicator key={i} label={c.condicao || `Cond. ${i + 1}`} value={`${fmtNum(c.value)} %`} criteria="≤ ±2,0 %" status={Math.abs(c.value) <= 2 ? 'pass' : 'fail'} />
-            ))}
-          </div>
-        </section>
+      {/* Results Table */}
+      <div className="bg-card border rounded-xl p-6">
+        <h3 className="text-sm font-semibold text-foreground mb-4 flex items-center gap-2">
+          <span>📊</span> Resultados de Robustez
+        </h3>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b">
+                <th className="text-left py-2 px-1 text-[10px] font-semibold text-muted-foreground uppercase">Parâmetro</th>
+                <th className="text-left py-2 px-1 text-[10px] font-semibold text-muted-foreground uppercase">Área Padrão (mAU)</th>
+                <th className="text-left py-2 px-1 text-[10px] font-semibold text-muted-foreground uppercase">Área Amostra (mAU)</th>
+                <th className="text-right py-2 px-1 text-[10px] font-semibold text-muted-foreground uppercase">Recuperação (%)</th>
+              </tr>
+            </thead>
+            <tbody>
+              {resultRows.map((r, i) => {
+                const rec = recResults?.[i];
+                return (
+                  <tr key={i} className="border-b border-border/50">
+                    <td className="py-1.5 px-1"><Input value={r.parametro} onChange={e => { const next = [...resultRows]; next[i] = { ...r, parametro: e.target.value }; setResultRows(next); setCalculated(false); }} className="h-8 text-xs" /></td>
+                    <td className="py-1.5 px-1"><Input type="number" value={r.areaPadrao} onChange={e => { const next = [...resultRows]; next[i] = { ...r, areaPadrao: e.target.value }; setResultRows(next); setCalculated(false); }} className="h-8 w-32 text-xs" /></td>
+                    <td className="py-1.5 px-1"><Input type="number" value={r.areaAmostra} onChange={e => { const next = [...resultRows]; next[i] = { ...r, areaAmostra: e.target.value }; setResultRows(next); setCalculated(false); }} className="h-8 w-32 text-xs" /></td>
+                    <td className="py-1.5 px-1 text-right font-mono text-sm font-medium">
+                      {rec?.value != null ? <span className={rec.value >= 98 && rec.value <= 102 ? 'text-[hsl(var(--success))]' : 'text-[hsl(var(--destructive))]'}>{fmtNum(rec.value, 2)}</span> : <span className="text-muted-foreground">—</span>}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+        <Button variant="ghost" size="sm" onClick={addResult} className="mt-2 gap-1.5 text-xs">
+          <Plus className="w-3.5 h-3.5" /> Adicionar Linha
+        </Button>
+      </div>
+
+      <div className="flex gap-3">
+        <Button onClick={() => setCalculated(true)} className="gap-2"><Calculator className="w-4 h-4" /> Calcular</Button>
+        <Button variant="outline" onClick={() => { setSstRows(defaultSST.map(r => ({ ...r }))); setResultRows(defaultResults.map(r => ({ ...r }))); setCalculated(false); }} className="gap-2"><RotateCcw className="w-4 h-4" /> Resetar</Button>
+      </div>
+
+      {recResults && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          {recResults.filter(r => r.value != null).map((r, i) => (
+            <ResultIndicator key={i} label={r.parametro} value={`${fmtNum(r.value!, 2)} %`} criteria="98,0 – 102,0 %" status={r.value! >= 98 && r.value! <= 102 ? 'pass' : 'fail'} />
+          ))}
+        </div>
       )}
 
       {rationaleSteps.length > 0 && (
-        <section>
-          <h2 className="text-base font-semibold text-foreground mb-4 flex items-center gap-2">
-            <span className="w-6 h-6 rounded bg-primary text-primary-foreground flex items-center justify-center text-xs font-bold">3</span>
-            Racional do Cálculo
-          </h2>
-          <div className="bg-card border rounded-lg p-6">
-            <CalculationRationale title="Robustez — Variações de Condições" steps={rationaleSteps} />
-          </div>
-        </section>
+        <div className="bg-card border rounded-xl p-6">
+          <CalculationRationale title="Racional: Robustez" steps={rationaleSteps} />
+        </div>
       )}
-
-      <section>
-        <h2 className="text-base font-semibold text-foreground mb-4 flex items-center gap-2">
-          <span className="w-6 h-6 rounded bg-primary text-primary-foreground flex items-center justify-center text-xs font-bold">4</span>
-          Observações
-        </h2>
-        <Textarea value={observacoes} onChange={e => setObservacoes(e.target.value)} placeholder="Adicione observações..." rows={4} />
-      </section>
 
       <div className="flex justify-end">
         <Button variant="outline" className="gap-2"><FileDown className="w-4 h-4" /> Exportar</Button>
