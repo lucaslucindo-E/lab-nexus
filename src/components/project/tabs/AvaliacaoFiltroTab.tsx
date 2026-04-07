@@ -1,10 +1,8 @@
 import { useState, useMemo } from 'react';
 import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
-import { ResultIndicator } from '@/components/project/ResultIndicator';
 import { CalculationRationale } from '@/components/project/CalculationRationale';
-import { fmtNum, stats, executeFormula, type FormulaDefinition } from '@/lib/calc-engine';
+import { fmtNum, executeFormula, type FormulaDefinition } from '@/lib/calc-engine';
 import { Calculator, RotateCcw, Plus, Trash2, FileDown } from 'lucide-react';
 
 const formulaRecuperacao: FormulaDefinition = {
@@ -15,116 +13,148 @@ const formulaRecuperacao: FormulaDefinition = {
   unidade: '%',
 };
 
-const defaultRows = [
-  { area_sem_filtrar: '490150', area_filtrada: '489800' },
-  { area_sem_filtrar: '490150', area_filtrada: '490050' },
-  { area_sem_filtrar: '490150', area_filtrada: '489500' },
+interface FilterRow { filtro: string; area: string }
+interface SectionData {
+  areaRef: string;
+  rows: FilterRow[];
+}
+
+const defaultFilters: FilterRow[] = [
+  { filtro: 'PVDF 0,45', area: '' },
+  { filtro: 'PVDF 0,22', area: '' },
+  { filtro: 'PTFE 0,45', area: '' },
 ];
 
 export function AvaliacaoFiltroTab() {
-  const [rows, setRows] = useState(defaultRows.map(r => ({ ...r })));
-  const [observacoes, setObservacoes] = useState('');
+  const [padrao, setPadrao] = useState<SectionData>({ areaRef: '', rows: defaultFilters.map(r => ({ ...r })) });
+  const [amostra, setAmostra] = useState<SectionData>({ areaRef: '', rows: [{ filtro: 'PVDF 0,45', area: '' }, { filtro: 'PVDF 0,22', area: '' }, { filtro: 'PTFE 0,22', area: '' }] });
   const [calculated, setCalculated] = useState(false);
 
-  const addRow = () => { setRows(prev => [...prev, { area_sem_filtrar: '', area_filtrada: '' }]); setCalculated(false); };
-  const removeRow = (i: number) => { if (rows.length <= 1) return; setRows(prev => prev.filter((_, idx) => idx !== i)); setCalculated(false); };
-  const updateRow = (i: number, field: string, val: string) => { setRows(prev => prev.map((r, idx) => (idx === i ? { ...r, [field]: val } : r))); setCalculated(false); };
+  const calcSection = (data: SectionData) => {
+    const ref = Number(data.areaRef);
+    if (!ref || isNaN(ref)) return null;
+    return data.rows.map(r => {
+      const a = Number(r.area);
+      if (!a || isNaN(a)) return { filtro: r.filtro, value: null, substitution: '' };
+      const res = executeFormula(formulaRecuperacao.formula, { area_filtrada: a, area_sem_filtrar: ref });
+      return { filtro: r.filtro, value: res.value, substitution: res.substitution };
+    });
+  };
 
-  const result = useMemo(() => {
-    if (!calculated) return null;
-    const calcs: { value: number; substitution: string }[] = [];
-    for (const row of rows) {
-      const af = Number(row.area_filtrada), as_ = Number(row.area_sem_filtrar);
-      if (isNaN(af) || isNaN(as_) || as_ === 0) return null;
-      calcs.push(executeFormula(formulaRecuperacao.formula, { area_filtrada: af, area_sem_filtrar: as_ }));
-    }
-    const values = calcs.map(c => c.value);
-    return { calcs, values, media: stats.media(values), dp: stats.desvio_padrao(values), rsd: stats.rsd(values) };
-  }, [calculated, rows]);
+  const padraoResults = useMemo(() => calculated ? calcSection(padrao) : null, [calculated, padrao]);
+  const amostraResults = useMemo(() => calculated ? calcSection(amostra) : null, [calculated, amostra]);
+
+  const addRow = (setter: React.Dispatch<React.SetStateAction<SectionData>>) => {
+    setter(prev => ({ ...prev, rows: [...prev.rows, { filtro: '', area: '' }] }));
+    setCalculated(false);
+  };
+
+  const updateRow = (setter: React.Dispatch<React.SetStateAction<SectionData>>, i: number, field: keyof FilterRow, val: string) => {
+    setter(prev => ({
+      ...prev,
+      rows: prev.rows.map((r, idx) => idx === i ? { ...r, [field]: val } : r),
+    }));
+    setCalculated(false);
+  };
+
+  const removeRow = (setter: React.Dispatch<React.SetStateAction<SectionData>>, i: number, data: SectionData) => {
+    if (data.rows.length <= 1) return;
+    setter(prev => ({ ...prev, rows: prev.rows.filter((_, idx) => idx !== i) }));
+    setCalculated(false);
+  };
+
+  const renderSection = (
+    title: string,
+    icon: string,
+    data: SectionData,
+    setter: React.Dispatch<React.SetStateAction<SectionData>>,
+    results: ReturnType<typeof calcSection>
+  ) => (
+    <div className="bg-card border rounded-xl p-6">
+      <h3 className="text-sm font-semibold text-foreground mb-4 flex items-center gap-2">
+        <span>{icon}</span> {title}
+      </h3>
+
+      <div className="mb-4">
+        <label className="text-xs font-medium text-muted-foreground">Área sem Filtrar (Referência)</label>
+        <Input
+          type="number"
+          value={data.areaRef}
+          onChange={e => { setter(prev => ({ ...prev, areaRef: e.target.value })); setCalculated(false); }}
+          className="h-9 w-48 mt-1"
+          placeholder="Ex: 490150"
+        />
+      </div>
+
+      <table className="w-full text-sm">
+        <thead>
+          <tr className="border-b">
+            <th className="text-left py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Filtro</th>
+            <th className="text-left py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Área do Pico</th>
+            <th className="text-right py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Recuperação (%)</th>
+            <th className="w-10"></th>
+          </tr>
+        </thead>
+        <tbody>
+          {data.rows.map((r, i) => (
+            <tr key={i} className="border-b border-border/50">
+              <td className="py-2 pr-3">
+                <Input value={r.filtro} onChange={e => updateRow(setter, i, 'filtro', e.target.value)} className="h-8" placeholder="Tipo do filtro" />
+              </td>
+              <td className="py-2 pr-3">
+                <Input type="number" value={r.area} onChange={e => updateRow(setter, i, 'area', e.target.value)} className="h-8" />
+              </td>
+              <td className="py-2 text-right font-mono text-sm font-medium">
+                {results?.[i]?.value != null ? <span className={results[i].value! >= 98 && results[i].value! <= 102 ? 'text-[hsl(var(--success))]' : 'text-[hsl(var(--destructive))]'}>{fmtNum(results[i].value!, 2)}</span> : <span className="text-muted-foreground">—</span>}
+              </td>
+              <td className="py-2">
+                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => removeRow(setter, i, data)} disabled={data.rows.length <= 1}>
+                  <Trash2 className="w-3.5 h-3.5 text-muted-foreground" />
+                </Button>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <Button variant="ghost" size="sm" onClick={() => addRow(setter)} className="mt-2 gap-1.5 text-xs">
+        <Plus className="w-3.5 h-3.5" /> Adicionar Linha
+      </Button>
+    </div>
+  );
 
   const rationaleSteps = useMemo(() => {
-    if (!result) return [];
+    if (!padraoResults && !amostraResults) return [];
     const steps: { label: string; formula: string; substitution?: string; result?: string }[] = [];
-    result.calcs.forEach((c, i) => {
-      steps.push({ label: `Recuperação ${i + 1}`, formula: formulaRecuperacao.formula, substitution: c.substitution, result: `${fmtNum(c.value)} %` });
+    padraoResults?.forEach(r => {
+      if (r.value != null) steps.push({ label: `Padrão — ${r.filtro}`, formula: formulaRecuperacao.formula, substitution: r.substitution, result: `${fmtNum(r.value, 2)} %` });
     });
-    steps.push({ label: 'Média', formula: 'Σ(valores) / n', result: `${fmtNum(result.media)} %` });
+    amostraResults?.forEach(r => {
+      if (r.value != null) steps.push({ label: `Amostra — ${r.filtro}`, formula: formulaRecuperacao.formula, substitution: r.substitution, result: `${fmtNum(r.value, 2)} %` });
+    });
     return steps;
-  }, [result]);
-
-  const reset = () => { setRows(defaultRows.map(r => ({ ...r }))); setCalculated(false); setObservacoes(''); };
+  }, [padraoResults, amostraResults]);
 
   return (
-    <div className="space-y-8">
-      <section>
-        <h2 className="text-base font-semibold text-foreground mb-4 flex items-center gap-2">
-          <span className="w-6 h-6 rounded bg-primary text-primary-foreground flex items-center justify-center text-xs font-bold">1</span>
-          Entrada de Dados
-        </h2>
-        <div className="bg-card border rounded-lg overflow-hidden">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="bg-muted">
-                <th className="text-left px-4 py-2 font-medium text-muted-foreground w-12">#</th>
-                <th className="text-left px-4 py-2 font-medium text-muted-foreground">Área Sem Filtrar</th>
-                <th className="text-left px-4 py-2 font-medium text-muted-foreground">Área Filtrada</th>
-                <th className="w-12"></th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((r, i) => (
-                <tr key={i} className="border-t">
-                  <td className="px-4 py-2 text-muted-foreground font-mono text-xs">{i + 1}</td>
-                  <td className="px-4 py-2"><Input type="number" value={r.area_sem_filtrar} onChange={e => updateRow(i, 'area_sem_filtrar', e.target.value)} className="h-8 w-36" /></td>
-                  <td className="px-4 py-2"><Input type="number" value={r.area_filtrada} onChange={e => updateRow(i, 'area_filtrada', e.target.value)} className="h-8 w-36" /></td>
-                  <td className="px-4 py-2">
-                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => removeRow(i)} disabled={rows.length <= 1}><Trash2 className="w-3.5 h-3.5 text-muted-foreground" /></Button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-        <div className="flex gap-3 mt-4">
-          <Button onClick={() => setCalculated(true)} className="gap-2"><Calculator className="w-4 h-4" /> Calcular</Button>
-          <Button variant="outline" onClick={addRow} className="gap-2"><Plus className="w-4 h-4" /> Adicionar Linha</Button>
-          <Button variant="outline" onClick={reset} className="gap-2"><RotateCcw className="w-4 h-4" /> Resetar</Button>
-        </div>
-      </section>
+    <div className="space-y-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {renderSection('Solução Padrão', '🧪', padrao, setPadrao, padraoResults)}
+        {renderSection('Solução Amostra', '🧪', amostra, setAmostra, amostraResults)}
+      </div>
 
-      {result && (
-        <section>
-          <h2 className="text-base font-semibold text-foreground mb-4 flex items-center gap-2">
-            <span className="w-6 h-6 rounded bg-primary text-primary-foreground flex items-center justify-center text-xs font-bold">2</span>
-            Resultados
-          </h2>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <ResultIndicator label="Recuperação Média" value={`${fmtNum(result.media)} %`} criteria="98,0 – 102,0 %" status={result.media >= 98 && result.media <= 102 ? 'pass' : 'fail'} />
-            <ResultIndicator label="Desvio Padrão" value={fmtNum(result.dp)} criteria="—" status="pass" />
-            <ResultIndicator label="%RSD" value={`${fmtNum(result.rsd)} %`} criteria="≤ 2,0 %" status={result.rsd <= 2 ? 'pass' : 'fail'} />
-          </div>
-        </section>
-      )}
+      <div className="flex gap-3">
+        <Button onClick={() => setCalculated(true)} className="gap-2">
+          <Calculator className="w-4 h-4" /> Calcular
+        </Button>
+        <Button variant="outline" onClick={() => { setPadrao({ areaRef: '', rows: defaultFilters.map(r => ({ ...r })) }); setAmostra({ areaRef: '', rows: [{ filtro: 'PVDF 0,45', area: '' }, { filtro: 'PVDF 0,22', area: '' }, { filtro: 'PTFE 0,22', area: '' }] }); setCalculated(false); }} className="gap-2">
+          <RotateCcw className="w-4 h-4" /> Resetar
+        </Button>
+      </div>
 
       {rationaleSteps.length > 0 && (
-        <section>
-          <h2 className="text-base font-semibold text-foreground mb-4 flex items-center gap-2">
-            <span className="w-6 h-6 rounded bg-primary text-primary-foreground flex items-center justify-center text-xs font-bold">3</span>
-            Racional do Cálculo
-          </h2>
-          <div className="bg-card border rounded-lg p-6">
-            <CalculationRationale title="Avaliação de Filtro" steps={rationaleSteps} />
-          </div>
-        </section>
+        <div className="bg-card border rounded-xl p-6">
+          <CalculationRationale title="Racional: Avaliação de Filtro" steps={rationaleSteps} />
+        </div>
       )}
-
-      <section>
-        <h2 className="text-base font-semibold text-foreground mb-4 flex items-center gap-2">
-          <span className="w-6 h-6 rounded bg-primary text-primary-foreground flex items-center justify-center text-xs font-bold">4</span>
-          Observações
-        </h2>
-        <Textarea value={observacoes} onChange={e => setObservacoes(e.target.value)} placeholder="Adicione observações..." rows={4} />
-      </section>
 
       <div className="flex justify-end">
         <Button variant="outline" className="gap-2"><FileDown className="w-4 h-4" /> Exportar</Button>

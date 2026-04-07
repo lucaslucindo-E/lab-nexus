@@ -4,14 +4,15 @@ import { ProjectCard } from '@/components/dashboard/ProjectCard';
 import { NewProjectDialog } from '@/components/dashboard/NewProjectDialog';
 import { mockProjects } from '@/lib/mock-data';
 import { ProjectStatus } from '@/lib/types';
-import { Search, FlaskConical } from 'lucide-react';
+import { Search, FlaskConical, LayoutDashboard, FolderOpen } from 'lucide-react';
+import logoAppval from '@/assets/logo-appval.png';
 
 const statusFilters: { value: ProjectStatus | 'all'; label: string }[] = [
-  { value: 'all', label: 'Todos' },
-  { value: 'not_started', label: 'Não iniciado' },
-  { value: 'active', label: 'Em andamento' },
-  { value: 'correction', label: 'Em correção' },
-  { value: 'review', label: 'Em revisão' },
+  { value: 'all', label: 'Todos os Status' },
+  { value: 'not_started', label: 'Não Iniciado' },
+  { value: 'active', label: 'Em Andamento' },
+  { value: 'correction', label: 'Em Correção' },
+  { value: 'review', label: 'Revisão' },
   { value: 'done', label: 'Finalizado' },
 ];
 
@@ -31,50 +32,63 @@ export default function Dashboard() {
 
   return (
     <div className="min-h-screen bg-background">
-      <header className="border-b bg-card">
-        <div className="container max-w-6xl mx-auto px-6 py-5 flex items-center justify-between">
+      {/* Navbar */}
+      <header className="border-b bg-card shadow-sm">
+        <div className="container max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-lg bg-primary flex items-center justify-center">
-              <FlaskConical className="w-5 h-5 text-primary-foreground" />
+            <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center overflow-hidden">
+              <img src={logoAppval} alt="AppVal" className="w-7 h-7 object-contain" />
             </div>
             <div>
-              <h1 className="text-xl font-bold text-foreground tracking-tight">AppVal</h1>
-              <p className="text-xs text-muted-foreground">Sistema de Validação Analítica</p>
+              <h1 className="text-lg font-bold text-foreground tracking-tight">AppVal</h1>
+              <p className="text-[10px] text-muted-foreground uppercase tracking-widest">Validação Analítica</p>
             </div>
           </div>
-          <NewProjectDialog />
+          <nav className="flex items-center gap-1">
+            <button className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg bg-primary text-primary-foreground">
+              <LayoutDashboard className="w-4 h-4" /> Dashboard
+            </button>
+            <button className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg text-muted-foreground hover:bg-accent transition-colors">
+              <FolderOpen className="w-4 h-4" /> Projetos
+            </button>
+          </nav>
         </div>
       </header>
 
-      <main className="container max-w-6xl mx-auto px-6 py-8">
+      <main className="container max-w-7xl mx-auto px-6 py-8">
+        {/* Page title */}
+        <div className="flex items-end justify-between mb-8">
+          <div>
+            <h2 className="text-2xl font-bold text-foreground">Projetos de Validação</h2>
+            <p className="text-sm text-muted-foreground mt-1">Gerencie suas validações analíticas com rastreabilidade e confiança.</p>
+          </div>
+          <NewProjectDialog />
+        </div>
+
+        {/* Search + Filter */}
         <div className="flex flex-col sm:flex-row gap-4 mb-8">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <Input
-              placeholder="Buscar por produto, analito, responsável ou ID..."
+              placeholder="Buscar por produto, ID ou analito..."
               value={search}
               onChange={e => setSearch(e.target.value)}
               className="pl-10"
             />
           </div>
-          <div className="flex gap-1.5 flex-wrap">
+          <select
+            className="h-10 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            value={statusFilter}
+            onChange={e => setStatusFilter(e.target.value as ProjectStatus | 'all')}
+          >
             {statusFilters.map(f => (
-              <button
-                key={f.value}
-                onClick={() => setStatusFilter(f.value)}
-                className={`px-3 py-2 text-sm rounded-md transition-colors ${
-                  statusFilter === f.value
-                    ? 'bg-primary text-primary-foreground'
-                    : 'bg-secondary text-secondary-foreground hover:bg-accent'
-                }`}
-              >
-                {f.label}
-              </button>
+              <option key={f.value} value={f.value}>{f.label}</option>
             ))}
-          </div>
+          </select>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {/* Project Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
           {filtered.map(project => (
             <ProjectCard key={project.id} project={project} />
           ))}
